@@ -3,6 +3,18 @@
 #include <argumentlist.h>
 #include <iostream>
 #include <QStream.h>
+#include <QDirIterator>
+#include <QFileInfo>
+
+void setFSD(QString argument, bool &f, bool &s, bool &d)
+{
+   if(argument.contains("f"))
+      f = true;
+   if(argument.contains("s"))
+      s = true;
+   if(argument.contains("d"))
+      d = true;
+}
 
 void processFile(QString filename, bool verbose) {
    if (verbose)
@@ -18,14 +30,16 @@ void runTestOnly(QStringList & listOfFiles, bool verbose) {
    }
 }
 
-void setFSD(QString argument, bool &f, bool &s, bool &d)
+void makeDirectory(QDirIterator &itr, QList<QFileInfo> &list)
 {
-   if(argument.contains("f"))
-      f = true;
-   if(argument.contains("s"))
-      s = true;
-   if(argument.contains("d"))
-      d = true;
+   static int currentDepth = 0;
+   if(itr.hasNext())
+   {
+      itr.next();
+      list.append(itr.fileInfo());
+      //qDebug() << itr.fileName();
+      makeDirectory(itr, list);
+   }
 }
 
 int main( int argc, char * argv[] ) {
@@ -65,35 +79,32 @@ int main( int argc, char * argv[] ) {
    dtype = al.getFlagContains("-d", NULL);
    if(dtype != NULL)
       setFSD(dtype, f, s, d);
+   //al.takeFirst();
+   //runTestOnly(al, false);
 
+   QList<QFileInfo> fileList;
 
-   if(depthAll)
-      qout << "depth";
-   if(bytes)
-      qout << "Bytes";
-   if(roundedkB) 
-      qout << "kB";
-   if(roundedMB)
-      qout << "MB";
-   if(depthString != NULL)
-      qout << depthString;
-   if(f)
-      qout << "f";
-   if(s)
-      qout << "s";
-   if(d)
-      qout << "d";
+   if(!al.isEmpty())
+   {
+      QDirIterator itr("/home/luke/Documents/AppliedSoftwareDesign/diskusage/" + al.takeFirst(),QDirIterator::Subdirectories); //| QDirIterator::FollowSymlinks); //
+      makeDirectory(itr, fileList);
+   }
 
+   else
+      qout << "You forgot to specify a resource!";
 
+   for(int i = 0; i < fileList.size(); i++)
+   {
+      //qout << fileList[i].fileName() << endl;
+      /*if(fileList[i].isDir())
+      {
+         qout << fileList[i].size() << " " << fileList[i].fileName() << endl;
+      }
+
+      else if(fileList[i].isFile())
+      {
+         qout << "\t" << fileList[i].size() << "\t" << fileList[i].fileName() << endl;
+      }*/
+      qout << fileList[i].size() << "\t" << fileList[i].filePath() << "\n";
+   }
 }
-
-/*QString appname = al.takeFirst();  
-   qDebug() << "Running " << appname;
-   bool verbose = al.getSwitch("-v");
-   bool testing = al.getSwitch("-t"); 
-   if (testing) {
-      runTestOnly(al, verbose);    
-      return 0;
-   } else {
-      qDebug() << "This Is Not A Test";
-   }*/
