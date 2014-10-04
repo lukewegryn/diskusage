@@ -16,30 +16,34 @@ void setFSD(QString argument, bool &f, bool &s, bool &d)
       d = true;
 }
 
-void processFile(QString filename, bool verbose) {
-   if (verbose)
-      qDebug() << QString("Do something chatty with %1.")
-                         .arg(filename);
-   else
-      qDebug() << filename;
-}
-
-void runTestOnly(QStringList & listOfFiles, bool verbose) {
-   foreach (const QString &current, listOfFiles) { 
-      processFile(current, verbose);
-   }
-}
-
 void makeDirectory(QDirIterator &itr, QList<QFileInfo> &list)
 {
-   static int currentDepth = 0;
    if(itr.hasNext())
    {
       itr.next();
       list.append(itr.fileInfo());
-      //qDebug() << itr.fileName();
       makeDirectory(itr, list);
    }
+}
+
+void makeDirectoryAlphabetical(QDirIterator &itr, QList<QFileInfo>&list)
+{
+   if(itr.hasNext())
+   {
+      itr.next();
+      list.append(itr.fileInfo());
+      makeDirectory(itr, list);
+   }
+}
+
+void displayData(QList<QFileInfo> &fileList, bool b, bool k, bool m, int i)
+{
+   if(b)
+         qout << fileList[i].size()  << " B" << "\t" << fileList[i].fileName() << "\n";
+   else if(k)
+         qout << qRound(fileList[i].size()/1024.0) << " kB" << "\t" << fileList[i].fileName() << "\n";
+   else if(m)
+         qout << qRound(fileList[i].size()/1048576.0) << " MB" << "\t" << fileList[i].fileName() << "\n";
 }
 
 int main( int argc, char * argv[] ) {
@@ -83,28 +87,38 @@ int main( int argc, char * argv[] ) {
    //runTestOnly(al, false);
 
    QList<QFileInfo> fileList;
+   QString path;
+   int initialDepth = 0;
+
+   /////////Trial//////////
+   
+   /////////End Trial//////
 
    if(!al.isEmpty())
    {
-      QDirIterator itr("/home/luke/Documents/AppliedSoftwareDesign/diskusage/" + al.takeFirst(),QDirIterator::Subdirectories); //| QDirIterator::FollowSymlinks); //
+      path = "/home/luke/Documents/AppliedSoftwareDesign/diskusage/" + al.takeFirst();
+      initialDepth = path.split("/").size() + 1;
+      QDirIterator itr(path,QDirIterator::Subdirectories | QDirIterator::FollowSymlinks); //
       makeDirectory(itr, fileList);
    }
 
    else
-      qout << "You forgot to specify a resource!";
+      qout << "You forgot to specify a resource!" << endl;
 
    for(int i = 0; i < fileList.size(); i++)
    {
-      //qout << fileList[i].fileName() << endl;
-      /*if(fileList[i].isDir())
+      if(depthAll)
       {
-         qout << fileList[i].size() << " " << fileList[i].fileName() << endl;
+         displayData(fileList, bytes, roundedkB, roundedMB, i);
       }
 
-      else if(fileList[i].isFile())
+      else
       {
-         qout << "\t" << fileList[i].size() << "\t" << fileList[i].fileName() << endl;
-      }*/
-      qout << fileList[i].size() << "\t" << fileList[i].filePath() << "\n";
+         if((fileList[i].path().split("/").size() - initialDepth) < depthString.toInt())
+         {
+            displayData(fileList, bytes, roundedkB, roundedMB, i);
+         }
+      }
    }
+
 }
