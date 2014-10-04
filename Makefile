@@ -381,7 +381,8 @@ main.o: main.cpp /usr/include/qt5/QtCore/QString \
 		/usr/include/qt5/QtCore/qfileinfo.h \
 		/usr/include/qt5/QtCore/qfile.h \
 		/usr/include/qt5/QtCore/qfiledevice.h \
-		/usr/include/qt5/QtCore/QFileInfo
+		/usr/include/qt5/QtCore/QFileInfo \
+		/usr/include/qt5/QtCore/QDir
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o main.o main.cpp
 
 QStream.o: QStream.cpp QStream.h \

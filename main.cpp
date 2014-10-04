@@ -5,6 +5,7 @@
 #include <QStream.h>
 #include <QDirIterator>
 #include <QFileInfo>
+#include <QDir>
 
 void setFSD(QString argument, bool &f, bool &s, bool &d)
 {
@@ -26,14 +27,21 @@ void makeDirectory(QDirIterator &itr, QList<QFileInfo> &list)
    }
 }
 
-void makeDirectoryAlphabetical(QDirIterator &itr, QList<QFileInfo>&list)
+void makeDirectoryAlphabetical(QDir dir, QList<QFileInfo> &list)
 {
-   if(itr.hasNext())
-   {
-      itr.next();
-      list.append(itr.fileInfo());
-      makeDirectory(itr, list);
+   dir.setSorting(QDir::Name);
+   QDir::Filters df = QDir::Files | QDir::NoDotAndDotDot | QDir::Dirs | QDir::NoSymLinks;
+   QStringList qsl = dir.entryList(df, QDir::Name | QDir::DirsFirst);
+   foreach(const QString &entry, qsl){
+      QFileInfo finfo(dir, entry);
+      list.append(finfo);
+      qout << finfo.fileName() << "\n";
+      if(finfo.isDir()){
+         QDir sd(finfo.absoluteFilePath());
+         makeDirectoryAlphabetical(sd, list);
+      }
    }
+
 }
 
 void displayData(QList<QFileInfo> &fileList, bool b, bool k, bool m, int i)
@@ -90,22 +98,45 @@ int main( int argc, char * argv[] ) {
    QString path;
    int initialDepth = 0;
 
-   /////////Trial//////////
-   
-   /////////End Trial//////
+   //if(!al.isEmpty())
+   //{
+      //path = "/home/luke/Documents/AppliedSoftwareDesign/diskusage/" + al.takeFirst();
+      //initialDepth = path.split("/").size() + 1;
+     // QDirIterator itr(path,QDirIterator::Subdirectories | QDirIterator::FollowSymlinks); //
+      //makeDirectory(itr, fileList);
+  // }
 
+  // else
+   //   qout << "You forgot to specify a resource!" << endl;
+
+   /////////Trial//////////
+   QList<QFileInfo> fileAlphaList;
    if(!al.isEmpty())
    {
       path = "/home/luke/Documents/AppliedSoftwareDesign/diskusage/" + al.takeFirst();
       initialDepth = path.split("/").size() + 1;
-      QDirIterator itr(path,QDirIterator::Subdirectories | QDirIterator::FollowSymlinks); //
-      makeDirectory(itr, fileList);
+      QDir dir(path);
+      makeDirectoryAlphabetical(dir, fileAlphaList);
    }
 
-   else
-      qout << "You forgot to specify a resource!" << endl;
+   for(int i = 0; i < fileAlphaList.size(); i++)
+   {
+      if(depthAll)
+      {
+         displayData(fileAlphaList, bytes, roundedkB, roundedMB, i);
+      }
 
-   for(int i = 0; i < fileList.size(); i++)
+      else
+      {
+         if((fileAlphaList[i].path().split("/").size() - initialDepth) < depthString.toInt())
+         {
+            displayData(fileList, bytes, roundedkB, roundedMB, i);
+         }
+      }
+   }
+   /////////End Trial//////
+
+   /*for(int i = 0; i < fileList.size(); i++)
    {
       if(depthAll)
       {
@@ -119,6 +150,6 @@ int main( int argc, char * argv[] ) {
             displayData(fileList, bytes, roundedkB, roundedMB, i);
          }
       }
-   }
+   }*/
 
 }
