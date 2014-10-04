@@ -35,7 +35,6 @@ void makeDirectoryAlphabetical(QDir dir, QList<QFileInfo> &list)
    foreach(const QString &entry, qsl){
       QFileInfo finfo(dir, entry);
       list.append(finfo);
-      qout << finfo.fileName() << "\n";
       if(finfo.isDir()){
          QDir sd(finfo.absoluteFilePath());
          makeDirectoryAlphabetical(sd, list);
@@ -46,12 +45,13 @@ void makeDirectoryAlphabetical(QDir dir, QList<QFileInfo> &list)
 
 void displayData(QList<QFileInfo> &fileList, bool b, bool k, bool m, int i)
 {
+   //qout << fileList[i].fileName() << endl;
    if(b)
-         qout << fileList[i].size()  << " B" << "\t" << fileList[i].fileName() << "\n";
+         qout << fileList[i].size()  << " B" << "\t" << fileList[i].fileName() << endl;
    else if(k)
-         qout << qRound(fileList[i].size()/1024.0) << " kB" << "\t" << fileList[i].fileName() << "\n";
+         qout << qRound(fileList[i].size()/1024.0) << " kB" << "\t" << fileList[i].fileName() << endl;
    else if(m)
-         qout << qRound(fileList[i].size()/1048576.0) << " MB" << "\t" << fileList[i].fileName() << "\n";
+         qout << qRound(fileList[i].size()/1048576.0) << " MB" << "\t" << fileList[i].fileName() << endl;
 }
 
 int main( int argc, char * argv[] ) {
@@ -68,6 +68,10 @@ int main( int argc, char * argv[] ) {
    QString ftype = NULL;
    QString stype = NULL;
    QString dtype = NULL;
+   /*for(int i = 0; i < al.size(); i ++)
+   {
+      qout << al[i] << endl;
+   }*/
 
    depthAll = al.getSwitch("-depth=all"); //depth specification all
    if(!depthAll)
@@ -94,14 +98,14 @@ int main( int argc, char * argv[] ) {
    //al.takeFirst();
    //runTestOnly(al, false);
 
-   QList<QFileInfo> fileList;
+   //QList<QFileInfo> fileList;
    QString path;
    int initialDepth = 0;
 
    //if(!al.isEmpty())
    //{
       //path = "/home/luke/Documents/AppliedSoftwareDesign/diskusage/" + al.takeFirst();
-      //initialDepth = path.split("/").size() + 1;
+      //initialDepth = path.split("/").size() + 1;//initialDepth = path.split("/").size() + 1;
      // QDirIterator itr(path,QDirIterator::Subdirectories | QDirIterator::FollowSymlinks); //
       //makeDirectory(itr, fileList);
   // }
@@ -110,25 +114,25 @@ int main( int argc, char * argv[] ) {
    //   qout << "You forgot to specify a resource!" << endl;
 
    /////////Trial//////////
-   QList<QFileInfo> fileAlphaList;
+   QList<QFileInfo> fileList;
    if(!al.isEmpty())
    {
       path = "/home/luke/Documents/AppliedSoftwareDesign/diskusage/" + al.takeFirst();
       initialDepth = path.split("/").size() + 1;
       QDir dir(path);
-      makeDirectoryAlphabetical(dir, fileAlphaList);
+      makeDirectoryAlphabetical(dir, fileList);
    }
 
-   for(int i = 0; i < fileAlphaList.size(); i++)
+   for(int i = 0; i < fileList.size(); i++)
    {
       if(depthAll)
       {
-         displayData(fileAlphaList, bytes, roundedkB, roundedMB, i);
+         displayData(fileList, bytes, roundedkB, roundedMB, i);
       }
 
       else
       {
-         if((fileAlphaList[i].path().split("/").size() - initialDepth) < depthString.toInt())
+         if((fileList[i].path().split("/").size() - initialDepth) < depthString.toInt())
          {
             displayData(fileList, bytes, roundedkB, roundedMB, i);
          }
