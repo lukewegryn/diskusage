@@ -30,7 +30,8 @@ void makeDirectory(QDirIterator &itr, QList<QFileInfo> &list)
 void makeDirectoryAlphabetical(QDir dir, QList<QFileInfo> &list)
 {
    dir.setSorting(QDir::Name);
-   QDir::Filters df = QDir::Files | QDir::NoDotAndDotDot | QDir::Dirs | QDir::NoSymLinks;
+   QDir::Filters df = QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot | QDir::NoSymLinks;
+
    QStringList qsl = dir.entryList(df, QDir::Name | QDir::DirsFirst);
    foreach(const QString &entry, qsl){
       QFileInfo finfo(dir, entry);
@@ -42,16 +43,45 @@ void makeDirectoryAlphabetical(QDir dir, QList<QFileInfo> &list)
    }
 
 }
-
-void displayData(QList<QFileInfo> &fileList, bool b, bool k, bool m, int i)
+void sizeOutput(QList<QFileInfo> &fileList, QList<bool> bkmfsd, int i)
 {
-   //qout << fileList[i].fileName() << endl;
-   if(b)
-         qout << fileList[i].size()  << " B" << "\t" << fileList[i].fileName() << endl;
-   else if(k)
-         qout << qRound(fileList[i].size()/1024.0) << " kB" << "\t" << fileList[i].fileName() << endl;
-   else if(m)
-         qout << qRound(fileList[i].size()/1048576.0) << " MB" << "\t" << fileList[i].fileName() << endl;
+   if(bkmfsd[0])
+      qout << fileList[i].size()  << " B" << "\t" << fileList[i].fileName() << endl;
+   else if(bkmfsd[1])
+      qout << qRound(fileList[i].size()/1024.0) << " kB" << "\t" << fileList[i].fileName() << endl;
+   else if(bkmfsd[2])
+      qout << qRound(fileList[i].size()/1048576.0) << " MB" << "\t" << fileList[i].fileName() << endl;
+}
+
+void displayData(QList<QFileInfo> &fileList, QList<bool> bkmfsd, int i)
+{
+   QString data = NULL;
+
+   if(bkmfsd[3])
+   {
+      if(fileList[i].isFile())
+      {  
+         sizeOutput(fileList,bkmfsd,i);
+      }
+   }
+
+   if(bkmfsd[4])
+   {
+      if(fileList[i].isSymLink())
+      {  
+         sizeOutput(fileList,bkmfsd,i);
+      }
+   }
+
+   if(bkmfsd[5])
+   {
+      if(fileList[i].isDir())
+      {
+         sizeOutput(fileList,bkmfsd,i);
+      }
+   }
+
+
 }
 
 int main( int argc, char * argv[] ) {
@@ -75,8 +105,10 @@ int main( int argc, char * argv[] ) {
 
    depthAll = al.getSwitch("-depth=all"); //depth specification all
    if(!depthAll)
-      depthString = al.getSwitchArgContains("-depth=", NULL); //depth specification int
-   
+      {
+         depthString = al.getSwitchArgContains("-depth=", NULL); //depth specification int
+         depthString.remove(0,7);
+      }
 
    bytes = al.getSwitch("-b"); //-b|-k|-m
    if(!bytes)
@@ -95,25 +127,14 @@ int main( int argc, char * argv[] ) {
    dtype = al.getFlagContains("-d", NULL);
    if(dtype != NULL)
       setFSD(dtype, f, s, d);
-   //al.takeFirst();
-   //runTestOnly(al, false);
 
-   //QList<QFileInfo> fileList;
+   QList<bool> bkmfsd;
+   bkmfsd << bytes << roundedkB << roundedMB << f << s << d;
+
    QString path;
    int initialDepth = 0;
 
-   //if(!al.isEmpty())
-   //{
-      //path = "/home/luke/Documents/AppliedSoftwareDesign/diskusage/" + al.takeFirst();
-      //initialDepth = path.split("/").size() + 1;//initialDepth = path.split("/").size() + 1;
-     // QDirIterator itr(path,QDirIterator::Subdirectories | QDirIterator::FollowSymlinks); //
-      //makeDirectory(itr, fileList);
-  // }
 
-  // else
-   //   qout << "You forgot to specify a resource!" << endl;
-
-   /////////Trial//////////
    QList<QFileInfo> fileList;
    if(!al.isEmpty())
    {
@@ -127,33 +148,16 @@ int main( int argc, char * argv[] ) {
    {
       if(depthAll)
       {
-         displayData(fileList, bytes, roundedkB, roundedMB, i);
+         displayData(fileList, bkmfsd, i);
       }
 
       else
       {
          if((fileList[i].path().split("/").size() - initialDepth) < depthString.toInt())
          {
-            displayData(fileList, bytes, roundedkB, roundedMB, i);
+            displayData(fileList, bkmfsd, i);
          }
       }
    }
-   /////////End Trial//////
-
-   /*for(int i = 0; i < fileList.size(); i++)
-   {
-      if(depthAll)
-      {
-         displayData(fileList, bytes, roundedkB, roundedMB, i);
-      }
-
-      else
-      {
-         if((fileList[i].path().split("/").size() - initialDepth) < depthString.toInt())
-         {
-            displayData(fileList, bytes, roundedkB, roundedMB, i);
-         }
-      }
-   }*/
 
 }
