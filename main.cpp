@@ -6,6 +6,7 @@
 #include <QDirIterator>
 #include <QFileInfo>
 #include <QDir>
+#include <QQueue>
 
 void setFSD(QString argument, bool &f, bool &s, bool &d)
 {
@@ -37,33 +38,50 @@ void displayHelp()
    qout << "\tresource0... [resource1 [...]]" << "\n\t\t" << "Specify as many resource file paths as desired with a space in between each one." << endl << endl;
 }
 
-void makeDirectoryAlphabetical(QDir dir, QList<QFileInfo> &list)
+void makeDirectoryAlphabetical(QDir dir, QList<QFileInfo> &list, int size, QQueue<int> &sizeQueue, bool symbolic)
 {
    dir.setSorting(QDir::Name);
-   QDir::Filters df = QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot | QDir::NoSymLinks;
+   QDir::Filters df;
+   if(!symbolic)
+      df = QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot | QDir::NoSymLinks;
+   else
+      df = QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot;
 
    QStringList qsl = dir.entryList(df, QDir::Name | QDir::DirsFirst);
    foreach(const QString &entry, qsl){
       QFileInfo finfo(dir, entry);
       list.append(finfo);
+      size += finfo.size();
       if(finfo.isDir()){
          QDir sd(finfo.absoluteFilePath());
-         makeDirectoryAlphabetical(sd, list);
+         makeDirectoryAlphabetical(sd, list, size, sizeQueue, symbolic);
       }
+      sizeQueue.enqueue(size);
+      size = 0;
    }
 
 }
 void sizeOutput(QList<QFileInfo> &fileList, QList<bool> bkmfsd, int i)
 {
    if(bkmfsd[0])
-      qout << fileList[i].size()  << " B" << "\t" << fileList[i].filePath() << endl;
+      qout << (fileList[i].size()) << " B" << "\t" << fileList[i].filePath() << endl;
    else if(bkmfsd[1])
-      qout << qRound(fileList[i].size()/1024.0) << " kB" << "\t" << fileList[i].filePath() << endl;
+      qout << qRound((fileList[i].size())/1024.0) << " kB" << "\t" << fileList[i].filePath() << endl;
    else if(bkmfsd[2])
-      qout << qRound(fileList[i].size()/1048576.0) << " MB" << "\t" << fileList[i].filePath() << endl;
+      qout << qRound((fileList[i].size())/1048576.0) << " MB" << "\t" << fileList[i].filePath() << endl;
 }
 
-void displayData(QList<QFileInfo> &fileList, QList<bool> bkmfsd, int i)
+void sizeOutputDir(QList<QFileInfo> &fileList, QQueue<int> &sizeQueue, QList<bool> bkmfsd, int i)
+{
+   if(bkmfsd[0])
+      qout << (/*fileList[i].size()*/ sizeQueue.dequeue()) << " B" << "\t" << fileList[i].filePath() << endl;
+   else if(bkmfsd[1])
+      qout << qRound((/*fileList[i].size()*/ sizeQueue.dequeue())/1024.0) << " kB" << "\t" << fileList[i].filePath() << endl;
+   else if(bkmfsd[2])
+      qout << qRound((/*fileList[i].size()*/ sizeQueue.dequeue())/1048576.0) << " MB" << "\t" << fileList[i].filePath() << endl;
+}
+
+void displayData(QList<QFileInfo> &fileList, QQueue<int> &sizeQueue, QList<bool> bkmfsd, int i)
 {
    QString data = NULL;
 
@@ -72,6 +90,7 @@ void displayData(QList<QFileInfo> &fileList, QList<bool> bkmfsd, int i)
       if(fileList[i].isFile())
       {  
          sizeOutput(fileList,bkmfsd,i);
+         sizeQueue.dequeue();
       }
    }
 
@@ -80,6 +99,7 @@ void displayData(QList<QFileInfo> &fileList, QList<bool> bkmfsd, int i)
       if(fileList[i].isSymLink())
       {  
          sizeOutput(fileList,bkmfsd,i);
+         sizeQueue.dequeue();
       }
    }
 
@@ -87,7 +107,8 @@ void displayData(QList<QFileInfo> &fileList, QList<bool> bkmfsd, int i)
    {
       if(fileList[i].isDir())
       {
-         sizeOutput(fileList,bkmfsd,i);
+         sizeOutputDir(fileList, sizeQueue, bkmfsd,i);
+         //sizeQueue.dequeue();
       }
    }
 
@@ -136,13 +157,15 @@ int main( int argc, char * argv[] ) {
 
 
    QList<QFileInfo> fileList;
+   QQueue<int> sizeQueue;
+   int sizeDir = 0;
    //QStringList pathList;
    if(!al.isEmpty()){
       while(!al.isEmpty()){
          path = al.takeFirst();
          QDir dir(path);
          if(dir.isReadable()){
-            makeDirectoryAlphabetical(dir, fileList);
+            makeDirectoryAlphabetical(dir, fileList, sizeDir, sizeQueue, s);
             initialDepth = path.split("/").size();
          }
       }
@@ -152,7 +175,11 @@ int main( int argc, char * argv[] ) {
    else
       noResources = true;
 
-
+   /*QQueue<int> testQueue = sizeQueue;
+   while(!sizeQueue.isEmpty())
+   {
+         qout << testQueue.dequeue()/1024 << endl;
+   }*/
 
    if(!bytes && !roundedkB && !roundedMB) displayHelp();
    else if(!depthAll && depthString == NULL) displayHelp();
@@ -164,14 +191,14 @@ int main( int argc, char * argv[] ) {
       {
          if(depthAll)
          {
-            displayData(fileList, bkmfsd, i);
+            displayData(fileList, sizeQueue, bkmfsd, i);
          }
 
          else
          {
             if((fileList[i].path().split("/").size() - initialDepth) < depthString.toInt())
             {
-               displayData(fileList, bkmfsd, i);
+               displayData(fileList, sizeQueue, bkmfsd, i);
             }
          }
       }
