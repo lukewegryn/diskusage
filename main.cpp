@@ -38,6 +38,30 @@ void displayHelp()
    qout << "\tresource0... [resource1 [...]]" << "\n\t\t" << "Specify as many resource file paths as desired with a space in between each one." << endl << endl;
 }
 
+int sizeDir(QDir dir, int size, bool symbolic)
+{
+   dir.setSorting(QDir::Name);
+   QDir::Filters df;
+   if(!symbolic)
+      df = QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot | QDir::NoSymLinks;
+   else
+      df = QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot;
+   QStringList qsl = dir.entryList(df, QDir::Name | QDir::DirsFirst);
+   foreach(const QString &entry, qsl){
+      QFileInfo finfo(dir, entry);
+      if(finfo.isDir() && !finfo.isSymLink()){
+         QDir sd(finfo.filePath());
+         int dirSize = finfo.size();
+         dirSize = sizeDir(sd, size, symbolic);
+         size += dirSize;
+      }
+      else
+         size += finfo.size();
+   }
+
+   return size;
+}
+
 void makeDirectoryAlphabetical(QDir dir, QList<QFileInfo> &list, int size, QQueue<int> &sizeQueue, bool symbolic)
 {
    dir.setSorting(QDir::Name);
@@ -46,21 +70,19 @@ void makeDirectoryAlphabetical(QDir dir, QList<QFileInfo> &list, int size, QQueu
       df = QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot | QDir::NoSymLinks;
    else
       df = QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot;
-
    QStringList qsl = dir.entryList(df, QDir::Name | QDir::DirsFirst);
    foreach(const QString &entry, qsl){
       QFileInfo finfo(dir, entry);
       list.append(finfo);
-      size += finfo.size();
-      if(finfo.isDir()){
-         QDir sd(finfo.absoluteFilePath());
+      if(finfo.isDir() && !finfo.isSymLink()){
+         QDir sd(finfo.filePath());
+         sizeQueue.enqueue(sizeDir(sd, size, symbolic));
          makeDirectoryAlphabetical(sd, list, size, sizeQueue, symbolic);
       }
-      sizeQueue.enqueue(size);
-      size = 0;
    }
 
 }
+
 void sizeOutput(QList<QFileInfo> &fileList, QList<bool> bkmfsd, int i)
 {
    if(bkmfsd[0])
@@ -74,11 +96,11 @@ void sizeOutput(QList<QFileInfo> &fileList, QList<bool> bkmfsd, int i)
 void sizeOutputDir(QList<QFileInfo> &fileList, QQueue<int> &sizeQueue, QList<bool> bkmfsd, int i)
 {
    if(bkmfsd[0])
-      qout << (/*fileList[i].size()*/ sizeQueue.dequeue()) << " B" << "\t" << fileList[i].filePath() << endl;
+      qout << (sizeQueue.dequeue()) << " B" << "\t" << fileList[i].fileName() << endl;
    else if(bkmfsd[1])
-      qout << qRound((/*fileList[i].size()*/ sizeQueue.dequeue())/1024.0) << " kB" << "\t" << fileList[i].filePath() << endl;
+      qout << qRound((sizeQueue.dequeue())/1024.0) << " kB" << "\t" << fileList[i].filePath() << endl;
    else if(bkmfsd[2])
-      qout << qRound((/*fileList[i].size()*/ sizeQueue.dequeue())/1048576.0) << " MB" << "\t" << fileList[i].filePath() << endl;
+      qout << qRound((sizeQueue.dequeue())/1048576.0) << " MB" << "\t" << fileList[i].filePath() << endl;
 }
 
 void displayData(QList<QFileInfo> &fileList, QQueue<int> &sizeQueue, QList<bool> bkmfsd, int i)
@@ -90,7 +112,7 @@ void displayData(QList<QFileInfo> &fileList, QQueue<int> &sizeQueue, QList<bool>
       if(fileList[i].isFile())
       {  
          sizeOutput(fileList,bkmfsd,i);
-         sizeQueue.dequeue();
+         //sizeQueue.dequeue();
       }
    }
 
@@ -99,7 +121,7 @@ void displayData(QList<QFileInfo> &fileList, QQueue<int> &sizeQueue, QList<bool>
       if(fileList[i].isSymLink())
       {  
          sizeOutput(fileList,bkmfsd,i);
-         sizeQueue.dequeue();
+         //sizeQueue.dequeue();
       }
    }
 
@@ -157,29 +179,30 @@ int main( int argc, char * argv[] ) {
 
 
    QList<QFileInfo> fileList;
+   QList<QFileInfo> justFileList;
    QQueue<int> sizeQueue;
-   int sizeDir = 0;
+   int sizeDir = 4096;
    //QStringList pathList;
    if(!al.isEmpty()){
       while(!al.isEmpty()){
-         path = al.takeFirst();
+         path = QDir::currentPath() + "/basis/" + al.takeFirst();
          QDir dir(path);
-         if(dir.isReadable()){
+         if(!dir.exists())
+         {
+            QFileInfo file(path);
+            justFileList.append(file);
+         }
+         else if(dir.isReadable()){
             makeDirectoryAlphabetical(dir, fileList, sizeDir, sizeQueue, s);
             initialDepth = path.split("/").size();
          }
       }
-      //path = "/home/luke/Documents/AppliedSoftwareDesign/diskusage/" + al.takeFirst();
+
+      fileList.append(justFileList);
    }
 
    else
       noResources = true;
-
-   /*QQueue<int> testQueue = sizeQueue;
-   while(!sizeQueue.isEmpty())
-   {
-         qout << testQueue.dequeue()/1024 << endl;
-   }*/
 
    if(!bytes && !roundedkB && !roundedMB) displayHelp();
    else if(!depthAll && depthString == NULL) displayHelp();
