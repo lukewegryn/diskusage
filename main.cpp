@@ -51,9 +51,10 @@ int sizeDir(QDir dir, int size, bool symbolic)
       QFileInfo finfo(dir, entry);
       if(finfo.isDir() && !finfo.isSymLink()){
          QDir sd(finfo.filePath());
-         int dirSize = finfo.size();
+         /*int dirSize = finfo.size();
          dirSize = sizeDir(sd, size, symbolic);
-         size += dirSize;
+         size += dirSize;*/
+         size += sizeDir(sd, size, symbolic);
       }
       else
          size += finfo.size();
@@ -95,12 +96,15 @@ void sizeOutput(QList<QFileInfo> &fileList, QList<bool> bkmfsd, int i)
 
 void sizeOutputDir(QList<QFileInfo> &fileList, QQueue<int> &sizeQueue, QList<bool> bkmfsd, int i)
 {
+   if(!sizeQueue.isEmpty())
+   {
    if(bkmfsd[0])
-      qout << (sizeQueue.dequeue()) << " B" << "\t" << fileList[i].fileName() << endl;
+      qout << (fileList[i].size() + sizeQueue.dequeue()) << " B" << "\t" << fileList[i].filePath() << endl;
    else if(bkmfsd[1])
-      qout << qRound((sizeQueue.dequeue())/1024.0) << " kB" << "\t" << fileList[i].filePath() << endl;
+      qout << qRound((fileList[i].size() + sizeQueue.dequeue())/1024.0) << " kB" << "\t" << fileList[i].filePath() << endl;
    else if(bkmfsd[2])
-      qout << qRound((sizeQueue.dequeue())/1048576.0) << " MB" << "\t" << fileList[i].filePath() << endl;
+      qout << qRound((fileList[i].size() + sizeQueue.dequeue())/1048576.0) << " MB" << "\t" << fileList[i].filePath() << endl;
+   }
 }
 
 void displayData(QList<QFileInfo> &fileList, QQueue<int> &sizeQueue, QList<bool> bkmfsd, int i)
@@ -180,29 +184,45 @@ int main( int argc, char * argv[] ) {
 
    QList<QFileInfo> fileList;
    QList<QFileInfo> justFileList;
+
+   QList<QFileInfo> initialFileList;
+   QQueue<int> initialSizeQueue;
+
    QQueue<int> sizeQueue;
-   int sizeDir = 4096;
+   int sizeofDir = 0;
    //QStringList pathList;
    if(!al.isEmpty()){
       while(!al.isEmpty()){
-         path = QDir::currentPath() + "/basis/" + al.takeFirst();
+         path = al.takeFirst();//QDir::currentPath() + "/basis/" + al.takeFirst();
          QDir dir(path);
+         QFileInfo file(path);
          if(!dir.exists())
          {
-            QFileInfo file(path);
             justFileList.append(file);
+            //initialFileList.append(file);
+            //initialSizeQueue.enqueue(file.size());
          }
          else if(dir.isReadable()){
-            makeDirectoryAlphabetical(dir, fileList, sizeDir, sizeQueue, s);
+            int fileSize = 0;//file.size();
+            int totalFileSize = sizeDir(dir, fileSize,s) + 4096;
+            initialFileList.append(file);
+            initialSizeQueue.enqueue(totalFileSize);
+            makeDirectoryAlphabetical(dir, fileList, sizeofDir, sizeQueue, s);
             initialDepth = path.split("/").size();
-         }
+            }
       }
 
-      fileList.append(justFileList);
+      if(!justFileList.isEmpty())
+         fileList.append(justFileList);
    }
 
    else
       noResources = true;
+
+   /*for(int i = 0; i < justFileList.size(); i++)
+   {
+      qout << justFileList[i].filePath();
+   }*/
 
    if(!bytes && !roundedkB && !roundedMB) displayHelp();
    else if(!depthAll && depthString == NULL) displayHelp();
@@ -210,6 +230,14 @@ int main( int argc, char * argv[] ) {
    else if(noResources) displayHelp();
    else
    {
+      for(int j = 0; j < initialFileList.size(); j++)
+      {
+         if(depthString.toInt() >= 0)
+            {
+               displayData(initialFileList, initialSizeQueue, bkmfsd, j);
+            }
+      }
+
       for(int i = 0; i < fileList.size(); i++)
       {
          if(depthAll)
@@ -219,7 +247,8 @@ int main( int argc, char * argv[] ) {
 
          else
          {
-            if((fileList[i].path().split("/").size() - initialDepth) < depthString.toInt())
+
+            if((fileList[i].path().split("/").size() - initialDepth) < (depthString.toInt()-1))
             {
                displayData(fileList, sizeQueue, bkmfsd, i);
             }
